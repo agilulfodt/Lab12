@@ -1,8 +1,6 @@
-from typing import Any
-
 import networkx as nx
 from database.dao import DAO
-import random
+
 
 class Model:
     def __init__(self):
@@ -62,42 +60,46 @@ class Model:
         :param soglia: si considerano solo i cammini con peso maggiore della soglia
         :return: lista di stringhe
         '''
-        metodo = 1#random.randint(1,2)
+
         self._best_path = []
         self._best_weight = float('inf')
         cammino = []
-        if metodo == 1: #metodo di ricorsione
-            for node in self.G.nodes():
-                self._ricorsione(soglia, node, [node], self._best_weight)
 
-            for index, node in enumerate(self._best_path):
-                cammino.append(f"{node} -> {self._best_path[index + 1]}")
+        for node in self.G.nodes():
+            self._ricorsione(soglia, node, [node])
 
-        # if metodo == 2:
-        #     fw = nx.floyd_warshall(self.G, weight='weight')
-        #     paths_lenghts = {a: dict(b) for a, b in fw.items()}
-        #     for node1 in paths_lenghts:
-        #         for node2 in paths_lenghts[node1]:
-        #             if node1 != node2 and paths_lenghts[node1][node2] < self._best_weight:
-        #                 sp = nx.shortest_path(self.G, source=node1, target=node2)
-        #                 if len(sp) >= 3:
-        #                     for i in range(len(sp)):
+        for i in range(len(self._best_path)):
+            try:
+                u = self._best_path[i]
+                v = self._best_path[i + 1]
+            except IndexError:
+                continue
+            cammino.append(f"{u} -> {v} [{self.G[u][v]['weight']}]")
         return cammino
 
-    def _ricorsione(self, soglia, start, path, weight):
-        if weight < self._best_weight and len(path) >= 3:
-            self._best_weight = weight
+    def _ricorsione(self, soglia, start, path):
+        path_weight = self.calcola_weight(path)
+        if path_weight < self._best_weight and len(path) >= 3:
+            self._best_weight = path_weight
             self._best_path = path.copy()
+            return
 
         for node in self.G[start]:
-            weight_attuale = self.G[start][node]['weight']
-            if weight_attuale <= soglia:
-                continue
-            if weight + weight_attuale >= self._best_weight:
-                continue
+            weight_arco = self.G[start][node]['weight']
             if node in path:
+                continue
+            if weight_arco <= soglia or weight_arco + path_weight > self._best_weight:
                 continue
 
             path.append(node)
-            self._ricorsione(soglia, node, path, weight + weight_attuale)
+            self._ricorsione(soglia, node, path)
             path.pop()
+
+    def calcola_weight(self, path):
+        weight = 0
+        for i in range(len(path)):
+            try:
+                weight += self.G[path[i]][path[i + 1]]['weight']
+            except IndexError:
+                continue
+        return weight
